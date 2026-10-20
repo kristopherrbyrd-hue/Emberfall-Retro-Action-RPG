@@ -643,3 +643,5 @@
 .preview-walk-toggle { display:inline-block; margin-left:6px; padding:4px 8px; border:1px solid #9c806d; background:transparent; color:#775b48; cursor:pointer; font:10px var(--app-font-mono); }
 .preview-walk-toggle[aria-pressed=true] { color:#3f6e5b; background:#d5e3d2; border-color:#6a967b; }
 @media(max-width:600px) { .creator-custom .appearance-options button { font-size:9px; padding:5px 6px; } .creator-custom .palette { gap:6px; } }
+
+.creator-color-input {width:36px;height:34px;padding:2px;cursor:pointer;border:1px solid #b19d7e;background:#1a2632;border-radius:5px;flex:none;}

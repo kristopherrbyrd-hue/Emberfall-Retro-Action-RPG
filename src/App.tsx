@@ -1,3 +1,4 @@
+import { renderModularHeroFrame } from '@/game/modularHero';
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from 'react';
 import {
   ArrowDown, ArrowLeft, ArrowRight, ArrowUp, BookOpen, Check, Compass, Menu,
@@ -127,56 +128,56 @@ function nextPowerEffect(power: PowerDefinition, rank: number, level: number, cl
   return `1 training point: ${powerAmountLabel(power, rank + 1, level, classId, resourceName)}`;
 }
 
-const heroAtlasPromises = new Map<ClassId, Promise<HTMLImageElement>>();
-function loadHeroAtlas(classId: ClassId) {
-  let promise = heroAtlasPromises.get(classId);
-  if (!promise) {
-    promise = new Promise((resolve, reject) => {
-      const image = new Image();
-      image.onload = () => resolve(image);
-      image.onerror = () => reject(new Error(`The ${classId} sprite atlas could not be loaded.`));
-      image.src = `${import.meta.env.BASE_URL}class-sprites/${classId}.png`;
+const modularAtlasPromises = new Map<string, Promise<[HTMLImageElement, HTMLImageElement]>>();
+function loadModularAtlases(classId: ClassId, bodyType: 'male' | 'female') {
+  const key = `${classId}-${bodyType}`;
+  if (!modularAtlasPromises.has(key)) {
+    const load = (path: string) => new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image(); img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error(`Cannot load sprite asset ${path}`));
+      img.src = `${import.meta.env.BASE_URL}modular-heroes/${path}`;
     });
-    heroAtlasPromises.set(classId, promise);
+    modularAtlasPromises.set(key, Promise.all([load(`${key}.png`), load(`${key}-regions.png`)]));
   }
-  return promise;
+  return modularAtlasPromises.get(key)!;
 }
-
-function PixelHero({ skin, hair, cloth, eyes, trim, facialHair, headwear, walking = false, classId, hairStyle = 'cropped', facing = 'down', large = false }: { skin: string; hair: string; cloth: string; eyes?: string; trim?: string; facialHair?: string; headwear?: string; walking?: boolean; classId: ClassId; hairStyle?: string; facing?: Direction; large?: boolean }) {
+function PixelHero({ skin, hair, cloth, eyes, trim, secondary, leather, metal, facialHair, headwear,
+  walking = false, classId, bodyType = 'male', hairStyle = 'cropped', facing = 'down', large = false }: {
+  skin: string; hair: string; cloth: string; eyes?: string; trim?: string;
+  secondary?: string; leather?: string; metal?: string;
+  facialHair?: string; headwear?: string; walking?: boolean; classId: ClassId;
+  bodyType?: 'male' | 'female'; hairStyle?: string; facing?: Direction; large?: boolean;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-
   useEffect(() => {
     let cancelled = false;
-    let intervalId: number | undefined;
-    loadHeroAtlas(classId).then((atlas) => {
-      const canvas = canvasRef.current;
-      const context = canvas?.getContext('2d', { willReadFrequently: true });
-      if (cancelled || !canvas || !context) return;
-      let frameIndex = 0;
+    let frame = 0;
+    let timer: number | undefined;
+    loadModularAtlases(classId, bodyType).then(([atlas, regions]) => {
+      if (cancelled) return;
       const draw = () => {
-        if (cancelled) return;
-        const customFrame = createCustomizedHeroFrame(atlas, facing, {
-          classId, skin, hairStyle, hairColor: hair, clothingColor: cloth,
+        const canvas = canvasRef.current;
+        const context = canvas?.getContext('2d');
+        if (!canvas || !context || cancelled) return;
+        const painted = renderModularHeroFrame(atlas, regions, facing, {
+          skin, hairColor: hair, hairStyle, clothingColor: cloth,
+          clothingSecondary: secondary, leatherColor: leather, metalColor: metal,
           eyeColor: eyes, trimColor: trim, facialHair, headwear,
-        }, { pose: walking ? `walk-${frameIndex % 6}` as HeroPose : 'idle' });
+        }, walking ? (frame++ % 6) + 1 : 0);
         context.imageSmoothingEnabled = false;
-        context.clearRect(0, 0, canvas.width, canvas.height);
-        context.drawImage(customFrame, 0, 0);
-        frameIndex += 1;
+        context.clearRect(0, 0, 256, 256);
+        context.drawImage(painted, 0, 0);
       };
       draw();
-      if (walking) intervalId = window.setInterval(draw, WALK_FRAME_DURATION_MS);
-    }).catch((error: unknown) => {
-      console.error('Could not render the selected hero appearance.', error);
-    });
-    return () => { cancelled = true; if (intervalId !== undefined) window.clearInterval(intervalId); };
-  }, [skin, hair, cloth, eyes, trim, facialHair, headwear, classId, hairStyle, facing, walking]);
-
-  return (
-    <div className={`pixel-hero ${large ? 'pixel-hero-large' : ''}`} aria-label={`${classId} hero, ${facing === 'down' ? 'front' : facing === 'up' ? 'back' : `${facing}-side`} view`} role="img">
+      if (walking) timer = window.setInterval(draw, WALK_FRAME_DURATION_MS);
+    }).catch(console.error);
+    return () => { cancelled = true; if (timer !== undefined) window.clearInterval(timer); };
+  }, [skin, hair, cloth, eyes, trim, secondary, leather, metal,
+      facialHair, headwear, classId, bodyType, hairStyle, facing, walking]);
+  return <div className={`pixel-hero ${large ? 'pixel-hero-large' : ''}`}
+    aria-label={`${bodyType} ${classId} ${facing} view`} role="img">
       <canvas ref={canvasRef} className="pixel-art" width={256} height={256} aria-hidden="true" />
-    </div>
-  );
+    </div>;
 }
 
 function Brand({ compact = false }: { compact?: boolean }) {
@@ -229,6 +230,7 @@ function App() {
   const [name, setName] = useState('');
   const [selectedSlot, setSelectedSlot] = useState(0);
   const [classId, setClassId] = useState<ClassId>('warrior');
+  const [bodyType, setBodyType] = useState<'male' | 'female'>('male');
   const [skinIndex, setSkinIndex] = useState(0);
   const [hairIndex, setHairIndex] = useState(0);
   const [clothIndex, setClothIndex] = useState(0);
@@ -237,6 +239,10 @@ function App() {
   const [trimIndex, setTrimIndex] = useState(0);
   const [facialHair, setFacialHair] = useState('None');
   const [headwear, setHeadwear] = useState('None');
+  const [customColors, setCustomColors] = useState<Record<string, string>>({});
+  const changeColor = (key: string, value: string) =>
+    setCustomColors((colors) => ({ ...colors, [key]: value }));
+  const chosen = (key: string, presets: string[], index: number) => customColors[key] ?? presets[index];
   const [creating, setCreating] = useState(false);
   const heldSources = useRef(new Map<string, Action>());
   const callbacks = useRef({ setDirection, pressButton, releaseButton });
@@ -312,13 +318,16 @@ function App() {
   const newHero = () => {
     startNewGame({
       name: name.trim() || 'Ash',
-      classId,
-      skin: skinTones[skinIndex],
+      classId, bodyType,
+      skin: chosen('skin', skinTones, skinIndex),
       hairStyle: hairStyle.toLowerCase(),
-      hairColor: hairTones[hairIndex],
-      clothingColor: clothTones[clothIndex],
-      eyeColor: eyeTones[eyeIndex],
-      trimColor: trimTones[trimIndex],
+      hairColor: chosen('hair', hairTones, hairIndex),
+      clothingColor: chosen('clothing', clothTones, clothIndex),
+      eyeColor: chosen('eyes', eyeTones, eyeIndex),
+      trimColor: chosen('trim', trimTones, trimIndex),
+      clothingSecondary: customColors.secondary ?? '#a78364',
+      leatherColor: customColors.leather ?? '#76513b',
+      metalColor: customColors.metal ?? '#a9b8bf',
       facialHair: facialHair.toLowerCase(),
       headwear: headwear.toLowerCase(),
     }, selectedSlot);
@@ -374,7 +383,8 @@ function App() {
   </main>;
 
   if (state.mode === 'creator') return <Creator
-    name={name} setName={setName} classId={classId} setClassId={setClassId}
+    name={name} setName={setName} classId={classId} setClassId={setClassId} bodyType={bodyType} setBodyType={setBodyType}
+    customColors={customColors} changeColor={changeColor}
     skinIndex={skinIndex} setSkinIndex={setSkinIndex} hairIndex={hairIndex} setHairIndex={setHairIndex}
     clothIndex={clothIndex} setClothIndex={setClothIndex} hairStyle={hairStyle} setHairStyle={setHairStyle}
     eyeIndex={eyeIndex} setEyeIndex={setEyeIndex} trimIndex={trimIndex} setTrimIndex={setTrimIndex}
@@ -392,7 +402,8 @@ function App() {
 }
 
 function Creator(props: {
-  name: string; setName: (s: string) => void; classId: ClassId; setClassId: (s: ClassId) => void;
+  name: string; setName: (s: string) => void; classId: ClassId; setClassId: (s: ClassId) => void; bodyType: 'male' | 'female'; setBodyType: (v: 'male' | 'female') => void;
+  customColors: Record<string, string>; changeColor: (key: string, value: string) => void;
   skinIndex: number; setSkinIndex: (n: number) => void; hairIndex: number; setHairIndex: (n: number) => void;
   clothIndex: number; setClothIndex: (n: number) => void; hairStyle: string; setHairStyle: (s: string) => void;
   eyeIndex: number; setEyeIndex: (n: number) => void; trimIndex: number; setTrimIndex: (n: number) => void;
@@ -400,6 +411,10 @@ function Creator(props: {
   onStart: () => void; onContinue: () => void; saveExists: boolean; onBack: () => void;
 }) {
   const activeClass = classInfo.find((item) => item.id === props.classId) ?? classInfo[0];
+  const editableColor = (key: string, preset: string) => <input type="color"
+    className="creator-color-input" aria-label={`Choose custom ${key} color`}
+    value={props.customColors[key] ?? preset}
+    onChange={(event) => props.changeColor(key, event.target.value)} />;
   const [previewFacing, setPreviewFacing] = useState<Direction>('down');
   const [previewWalking, setPreviewWalking] = useState(false);
   const previewDirections: { facing: Direction; label: string }[] = [
@@ -424,16 +439,25 @@ function Creator(props: {
             {props.classId === item.id && <Check size={16} className="class-check" />}
           </button>)}
         </div>
+        <div className="field-label">Character body</div>
+        <div className="preview-direction-options" role="group" aria-label="Choose male or female character">
+          {(['male','female'] as const).map(body => <button key={body} type="button"
+            aria-pressed={props.bodyType === body} className={props.bodyType === body ? 'selected' : ''}
+            onClick={() => props.setBodyType(body)}>{body === 'male' ? 'Male' : 'Female'}</button>)}
+        </div>
         <div className="creator-custom">
           <div className="field-label">Make them yours</div>
-          <div className="custom-row"><span>Skin</span><Palette options={skinTones} selected={props.skinIndex} onChange={props.setSkinIndex} label="skin tone" /></div>
-          <div className="custom-row"><span>Hair</span><Palette options={hairTones} selected={props.hairIndex} onChange={props.setHairIndex} label="hair color" /></div>
+          <div className="custom-row"><span>Skin</span><Palette options={skinTones} selected={props.skinIndex} onChange={(index) => { props.setSkinIndex(index); props.changeColor('skin', skinTones[index]); }} label="skin tone" />{editableColor("skin", skinTones[props.skinIndex])}</div>
+          <div className="custom-row"><span>Hair</span><Palette options={hairTones} selected={props.hairIndex} onChange={(index) => { props.setHairIndex(index); props.changeColor('hair', hairTones[index]); }} label="hair color" />{editableColor("hair", hairTones[props.hairIndex])}</div>
           <div className="custom-row custom-row-choices"><span>Style</span><ChoiceButtons options={hairStyles} selected={props.hairStyle} onChange={props.setHairStyle} label="hairstyle" /></div>
-          <div className="custom-row"><span>Eyes</span><Palette options={eyeTones} selected={props.eyeIndex} onChange={props.setEyeIndex} label="eye color" /></div>
+          <div className="custom-row"><span>Eyes</span><Palette options={eyeTones} selected={props.eyeIndex} onChange={(index) => { props.setEyeIndex(index); props.changeColor('eyes', eyeTones[index]); }} label="eye color" />{editableColor("eyes", eyeTones[props.eyeIndex])}</div>
           <div className="custom-row custom-row-choices"><span>Face</span><ChoiceButtons options={facialHairStyles} selected={props.facialHair} onChange={props.setFacialHair} label="facial hair" /></div>
           <div className="custom-row custom-row-choices"><span>Detail</span><ChoiceButtons options={headwearStyles} selected={props.headwear} onChange={props.setHeadwear} label="accessory" /></div>
-          <div className="custom-row"><span>Clothes</span><Palette options={clothTones} selected={props.clothIndex} onChange={props.setClothIndex} label="clothing color" /></div>
-          <div className="custom-row"><span>Trim</span><Palette options={trimTones} selected={props.trimIndex} onChange={props.setTrimIndex} label="trim color" /></div>
+          <div className="custom-row"><span>Clothes</span><Palette options={clothTones} selected={props.clothIndex} onChange={(index) => { props.setClothIndex(index); props.changeColor('clothing', clothTones[index]); }} label="clothing color" />{editableColor("clothing", clothTones[props.clothIndex])}</div>
+          <div className="custom-row"><span>Trim</span><Palette options={trimTones} selected={props.trimIndex} onChange={(index) => { props.setTrimIndex(index); props.changeColor('trim', trimTones[index]); }} label="trim color" />{editableColor("trim", trimTones[props.trimIndex])}</div>
+          <div className="custom-row"><span>Secondary</span>{editableColor('secondary', '#a78364')}</div>
+          <div className="custom-row"><span>Leather</span>{editableColor('leather', '#76513b')}</div>
+          <div className="custom-row"><span>Metal</span>{editableColor('metal', '#a9b8bf')}</div>
         </div>
         <div className="creator-cta"><button className="button button-primary" onClick={props.onStart} data-testid="button-start-adventure">Set out <ArrowRight size={17} /></button>
           {props.saveExists && <button className="button button-text" onClick={props.onContinue} data-testid="button-resume-save"><RotateCcw size={15} /> Resume saved journey</button>}
@@ -443,7 +467,7 @@ function Creator(props: {
         <span className="preview-note">CHARACTER PREVIEW <i>01</i></span>
         <div className="preview-halo"><div className="preview-star star-a">✳</div><div className="preview-star star-b">✷</div>
           <div className="preview-ground" />
-          <PixelHero skin={skinTones[props.skinIndex]} hair={hairTones[props.hairIndex]} cloth={clothTones[props.clothIndex]} eyes={eyeTones[props.eyeIndex]} trim={trimTones[props.trimIndex]} facialHair={props.facialHair.toLowerCase()} headwear={props.headwear.toLowerCase()} walking={previewWalking} classId={props.classId} hairStyle={props.hairStyle.toLowerCase()} facing={previewFacing} large />
+          <PixelHero skin={props.customColors.skin ?? skinTones[props.skinIndex]} hair={props.customColors.hair ?? hairTones[props.hairIndex]} cloth={props.customColors.clothing ?? clothTones[props.clothIndex]} eyes={props.customColors.eyes ?? eyeTones[props.eyeIndex]} trim={props.customColors.trim ?? trimTones[props.trimIndex]} secondary={props.customColors.secondary} leather={props.customColors.leather} metal={props.customColors.metal} facialHair={props.facialHair.toLowerCase()} headwear={props.headwear.toLowerCase()} walking={previewWalking} classId={props.classId} bodyType={props.bodyType} hairStyle={props.hairStyle.toLowerCase()} facing={previewFacing} large />
         </div>
         <div className="preview-directions">
           <span className="preview-directions-label">VIEW <button type="button" className="preview-walk-toggle" aria-pressed={previewWalking} onClick={() => setPreviewWalking(!previewWalking)} data-testid="button-preview-walk">{previewWalking ? '● Walking' : '▷ Walk'}</button></span>
@@ -612,7 +636,7 @@ function PlayScreen({ state, engine, dispatch, setAnalogMovement, openMenu, clos
         </div>}
       </div>
       <div className="hud-row">
-        <div className="player-hud"><div className="hud-portrait"><PixelHero skin={player.skin ?? skinTones[0]} hair={player.hairColor ?? hairTones[0]} cloth={player.clothingColor ?? clothTones[0]} hairStyle={player.hairStyle ?? 'cropped'} eyes={player.eyeColor} trim={player.trimColor} facialHair={player.facialHair} headwear={player.headwear} classId={player.classId ?? 'warrior'} /></div>
+        <div className="player-hud"><div className="hud-portrait"><PixelHero skin={player.skin ?? skinTones[0]} hair={player.hairColor ?? hairTones[0]} cloth={player.clothingColor ?? clothTones[0]} hairStyle={player.hairStyle ?? 'cropped'} eyes={player.eyeColor} trim={player.trimColor} facialHair={player.facialHair} headwear={player.headwear} classId={player.classId ?? 'warrior'} bodyType={player.bodyType ?? 'male'} /></div>
           <div className="hud-player-meta"><div className="hud-name">{player.name}<span>LV {player.level}</span></div><Meter label="VITALITY" value={player.hp} max={player.maxHp} tone="#c8553d" /><Meter label="SPIRIT" value={player.resource} max={player.maxResource} tone="#568779" /></div>
         </div>
         <div className="quest-hud"><span className="quest-kicker"><BookOpen size={13} /> CURRENT THREAD</span><b>{quest?.title}</b><small>{quest?.description}</small></div>
@@ -871,7 +895,7 @@ function Overlay({ overlay, player, inventory, abilities, trainedPowers, quest, 
         />}
       </div>}
       {overlay === 'character' && <div className="overlay-content character-sheet">
-        <div className="sheet-hero"><div className="sheet-avatar"><PixelHero skin={player.skin ?? skinTones[0]} hair={player.hairColor ?? hairTones[0]} cloth={player.clothingColor ?? clothTones[0]} hairStyle={player.hairStyle ?? 'cropped'} eyes={player.eyeColor} trim={player.trimColor} facialHair={player.facialHair} headwear={player.headwear} classId={player.classId ?? 'warrior'} large /></div><div><span className="eyebrow">TRAVELER · LEVEL {player.level}</span><h3>{player.name}</h3><p>{classInfo.find((item) => item.id === player.classId)?.name ?? 'Vanguard'}</p><div className="sheet-equipped-weapon" data-testid="sheet-equipped-weapon"><span>WEAPON</span><b>{player.weapon}</b></div></div></div>
+        <div className="sheet-hero"><div className="sheet-avatar"><PixelHero skin={player.skin ?? skinTones[0]} hair={player.hairColor ?? hairTones[0]} cloth={player.clothingColor ?? clothTones[0]} hairStyle={player.hairStyle ?? 'cropped'} eyes={player.eyeColor} trim={player.trimColor} facialHair={player.facialHair} headwear={player.headwear} classId={player.classId ?? 'warrior'} bodyType={player.bodyType ?? 'male'} large /></div><div><span className="eyebrow">TRAVELER · LEVEL {player.level}</span><h3>{player.name}</h3><p>{classInfo.find((item) => item.id === player.classId)?.name ?? 'Vanguard'}</p><div className="sheet-equipped-weapon" data-testid="sheet-equipped-weapon"><span>WEAPON</span><b>{player.weapon}</b></div></div></div>
         <div className="stat-pair"><span>Experience <b>{player.xp} xp</b></span><span>Training <b>{player.trainingPoints} pt</b></span><span>Coin <b>{player.coins} shards</b></span></div><Meter label="VITALITY" value={player.hp} max={player.maxHp} tone="#c8553d" /><Meter label="SPIRIT" value={player.resource} max={player.maxResource} tone="#568779" />
         <div className="journal-note"><span>FIELD NOTE</span><b>{quest?.title}</b><p>{quest?.description}</p><small>STEP {quest?.step ?? 1}</small></div>
         {log.length > 0 && <div className="recent-log"><span>RECENT NOTES</span>{log.slice(-3).map((line, i) => <p key={`${i}-${line}`}>{line}</p>)}</div>}

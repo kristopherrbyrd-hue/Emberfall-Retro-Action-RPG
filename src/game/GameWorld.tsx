@@ -90,9 +90,6 @@ class EmberfallScene extends Phaser.Scene {
   private terrainScenery: Phaser.GameObjects.Image[] = [];
 
   private visibleCellIds = new Set<string>();
-
-  // Props were previously reconstructed from the entire 60-cell overworld
-  // every frame. Refresh static art at 10 Hz, or immediately on cell changes.
   private cachedWorldProps: WorldProp[] = [];
   private cachedWorldPropsCell = '';
   private worldPropsRefreshedAt = -Infinity;
@@ -189,6 +186,14 @@ class EmberfallScene extends Phaser.Scene {
       `${import.meta.env.BASE_URL}emberfall-world-character-atlas.svg`,
       { frameWidth: 128, frameHeight: 144 },
     );
+    // Two compact atlases (artwork + palette regions) replace 28 PNG loads.
+    const active = this.engine.getState().player;
+    const classId = active?.classId ?? 'warrior';
+    const bodyType = active?.bodyType ?? 'male';
+    this.load.image('hero-modular-active',
+      `${import.meta.env.BASE_URL}modular-heroes/${classId}-${bodyType}.png`);
+    this.load.image('hero-modular-active-mask',
+      `${import.meta.env.BASE_URL}modular-heroes/${classId}-${bodyType}-regions.png`);
     for (const [texture, asset] of Object.entries(SPRITE_ASSETS)) {
       this.load.image(texture, `${import.meta.env.BASE_URL}${asset}`);
     }
@@ -215,9 +220,6 @@ class EmberfallScene extends Phaser.Scene {
       this.terrainCells.clear();
       this.terrainScenery = [];
       this.visibleCellIds.clear();
-      this.cachedWorldProps = [];
-      this.cachedWorldPropsCell = '';
-      this.worldPropsRefreshedAt = -Infinity;
       this.renderedCenterCellId = '';
       this.renderedBellSignature = '';
       this.renderedMarchesTide = 'low';
@@ -310,23 +312,24 @@ class EmberfallScene extends Phaser.Scene {
 
   private createPlayerTextures(player: PlayerState) {
     const signature = [
-      player.classId,
+      player.classId, player.bodyType ?? 'male',
       player.skin,
       player.hairStyle,
       player.hairColor,
       player.clothingColor,
-      player.eyeColor, player.trimColor, player.facialHair, player.headwear,
+      player.eyeColor, player.trimColor, player.clothingSecondary, player.leatherColor, player.metalColor, player.facialHair, player.headwear,
     ].join('|');
     if (signature === this.playerTextureSignature) return;
     const atlas = this.textures.get(`hero-class-${player.classId}`).getSourceImage() as CanvasImageSource;
     const attackAtlas = this.textures.get(`hero-attack-${player.classId}`).getSourceImage() as CanvasImageSource;
+    const modularAtlas = this.textures.get('hero-modular-active').getSourceImage() as CanvasImageSource;
+    const modularMask = this.textures.get('hero-modular-active-mask').getSourceImage() as CanvasImageSource;
     const poses: HeroPose[] = ['idle', ...HERO_WALK_POSES, 'attack'];
     for (const facing of ['down', 'up', 'left', 'right'] as const) {
       for (const pose of poses) {
-        const poseAtlas = pose === 'attack' ? attackAtlas : atlas;
-        const frame = createCustomizedHeroFrame(poseAtlas, facing, player, {
-          pose,
-        });
+        const isAttack = pose === 'attack';
+        const frame = createCustomizedHeroFrame(isAttack ? attackAtlas : atlas,
+          facing, player, { pose, ...(isAttack ? {} : { modularAtlas, modularMask }) });
         const key = heroTextureKey(facing, pose);
         if (this.textures.exists(key)) this.textures.remove(key);
         const texture = this.textures.addCanvas(key, frame);
@@ -392,33 +395,24 @@ class EmberfallScene extends Phaser.Scene {
         this.drawWorldMap(hero.x, hero.y);
       }
     }
-    // Keep the 3x3 terrain streaming area, but only update dynamic art near
-    // the camera. The extra half-cell margin prevents pop-in at boundaries.
-    const drawHalfWidth = this.cameras.main.width / (2 * this.cameras.main.zoom) + WORLD_CELL_WIDTH / 2;
-    const drawHalfHeight = this.cameras.main.height / (2 * this.cameras.main.zoom) + WORLD_CELL_HEIGHT / 2;
-    const closeToCamera = (x: number, y: number) =>
-      Math.abs(x - hero.x) <= drawHalfWidth && Math.abs(y - hero.y) <= drawHalfHeight;
-    const refreshWorldProps = Boolean(dungeonVisit) ||
-      this.cachedWorldPropsCell !== cellId ||
+    const refreshProps = Boolean(dungeonVisit) || this.cachedWorldPropsCell !== cellId ||
       this.time.now - this.worldPropsRefreshedAt >= 100;
-    if (refreshWorldProps) {
+    if (refreshProps) {
       this.cachedWorldProps = this.engine.getProps();
       this.cachedWorldPropsCell = cellId;
       this.worldPropsRefreshedAt = this.time.now;
     }
-    const visibleProps = this.cachedWorldProps.filter((prop) => {
-      if (dungeonVisit) return true;
-      const propCellId = worldCellAt(prop.x, prop.y)?.id;
-      return Boolean(propCellId && this.visibleCellIds.has(propCellId) &&
-        closeToCamera(prop.x, prop.y));
-    });
-    if (refreshWorldProps) this.drawWorldProps(visibleProps, fresh.roomId, fresh.keyFound, fresh.gateOpen);
+    const halfW = this.cameras.main.width / (2 * this.cameras.main.zoom) + WORLD_CELL_WIDTH / 2;
+    const halfH = this.cameras.main.height / (2 * this.cameras.main.zoom) + WORLD_CELL_HEIGHT / 2;
+    const near = (x: number, y: number) => Math.abs(x - hero.x) < halfW && Math.abs(y - hero.y) < halfH;
+    const visibleProps = this.cachedWorldProps.filter((prop) => dungeonVisit ||
+      (this.visibleCellIds.has(worldCellAt(prop.x, prop.y)?.id ?? '') && near(prop.x, prop.y)));
+    if (refreshProps) this.drawWorldProps(visibleProps, fresh.roomId, fresh.keyFound, fresh.gateOpen);
     this.drawPlayer(hero, this.time.now, this.engine.getAttackAnimation());
     const visibleEnemies = this.engine.getEnemies().filter((actor) => {
       if (dungeonVisit) return true;
       const enemyCellId = worldCellAt(actor.x, actor.y)?.id;
-      return Boolean(enemyCellId && this.visibleCellIds.has(enemyCellId) &&
-        closeToCamera(actor.x, actor.y));
+      return Boolean(enemyCellId && this.visibleCellIds.has(enemyCellId) && near(actor.x, actor.y));
     });
     this.drawEnemies(visibleEnemies);
     this.drawEffects(this.engine.getProjectiles(), this.engine.getEffects());

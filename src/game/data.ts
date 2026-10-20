@@ -164,10 +164,14 @@ export type CharacterConfig = {
   classId: ClassId;
   skin: string;
   hairStyle: string;
+  bodyType?: 'male' | 'female';
   hairColor: string;
   clothingColor: string;
   eyeColor?: string;
   trimColor?: string;
+  clothingSecondary?: string;
+  leatherColor?: string;
+  metalColor?: string;
   facialHair?: string;
   headwear?: string;
 };

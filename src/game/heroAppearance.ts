@@ -1,14 +1,15 @@
+import { renderModularHeroFrame } from './modularHero';
 import type { CharacterConfig, Direction } from './data';
 
 export type HeroAppearance = Pick<
   CharacterConfig,
-  'classId' | 'skin' | 'hairStyle' | 'hairColor' | 'clothingColor' | 'eyeColor' | 'trimColor' | 'facialHair' | 'headwear'
+  'classId' | 'bodyType' | 'skin' | 'hairStyle' | 'hairColor' | 'clothingColor' | 'eyeColor' | 'trimColor' | 'clothingSecondary' | 'leatherColor' | 'metalColor' | 'facialHair' | 'headwear'
 > & { weapon?: string };
 
 export const HERO_WALK_POSES = ['walk-0', 'walk-1', 'walk-2', 'walk-3', 'walk-4', 'walk-5'] as const;
 export const WALK_FRAME_DURATION_MS = 96;
 export type HeroPose = 'idle' | (typeof HERO_WALK_POSES)[number] | 'attack';
-export type HeroFrameOptions = { pose?: HeroPose };
+export type HeroFrameOptions = { pose?: HeroPose; modularAtlas?: CanvasImageSource; modularMask?: CanvasImageSource };
 
 export const HERO_FRAME_SIZE = 256;
 
@@ -41,72 +42,105 @@ function shadeColor(color: [number, number, number], brightness: number): [numbe
   return color.map((channel) => Math.max(0, Math.min(255, Math.round(channel * factor)))) as [number, number, number];
 }
 
+/** Reference points measured against each class's actual 256px atlas, not
+ * guessed global coordinates. The original illustrations already have
+ * excellent shading, so additions must be subtle tapered details, not blocks. */
+const headLandmarks: Record<HeroAppearance['classId'], {
+  hair: { cx: number; top: number; edge: number; bottom: number };
+  eyes: { left: number; right: number; y: number };
+  brow: number;
+  chin: number;
+  ornament: { x: number; y: number };
+}> = {
+  warrior: { hair: { cx: 134, top: 14, edge: 19, bottom: 36 }, eyes: { left: 125, right: 143, y: 46 }, brow: 41, chin: 69, ornament: { x: 134, y: 34 } },
+  rogue: { hair: { cx: 134, top: 49, edge: 15, bottom: 68 }, eyes: { left: 127, right: 144, y: 72 }, brow: 68, chin: 84, ornament: { x: 134, y: 52 } },
+  adept: { hair: { cx: 131, top: 27, edge: 23, bottom: 58 }, eyes: { left: 121, right: 140, y: 67 }, brow: 62, chin: 81, ornament: { x: 130, y: 24 } },
+  mage: { hair: { cx: 140, top: 59, edge: 23, bottom: 86 }, eyes: { left: 130, right: 151, y: 75 }, brow: 71, chin: 92, ornament: { x: 140, y: 47 } },
+};
+
 function paintHairStyle(
   context: CanvasRenderingContext2D,
   hairColor: [number, number, number],
   direction: Direction,
   style: string,
+  classId: HeroAppearance['classId'],
 ) {
-  const shadow = shadeColor(hairColor, 78);
-  const middle = shadeColor(hairColor, 125);
-  const highlight = shadeColor(hairColor, 175);
-  const fill = (color: [number, number, number], x: number, y: number, width: number, height: number) => {
-    context.fillStyle = `rgb(${color.join(',')})`;
-    context.fillRect(x, y, width, height);
+  if (style === 'cropped' || style === 'shaved') return;
+  const { hair: head } = headLandmarks[classId];
+  const shadow = shadeColor(hairColor, 77);
+  const shine = shadeColor(hairColor, 167);
+  const color = (rgb: [number, number, number], alpha = 1) =>
+    `rgba(${rgb.join(',')},${alpha})`;
+  // The rogue's hair lives under a hood; the mage's is under a hat.
+  // Never paint new hair on top of those items.
+  const covered = classId === 'rogue' || classId === 'mage';
+  const view = direction === 'left' ? -1 : direction === 'right' ? 1 : 0;
+  const cx = head.cx + view * 8;
+  context.save();
+  context.lineCap = 'round';
+  context.lineJoin = 'round';
+  const strand = (sx: number, sy: number, ex: number, ey: number, width: number, tone: [number, number, number]) => {
+    context.beginPath();
+    context.moveTo(sx, sy);
+    context.quadraticCurveTo(sx + (ex - sx) * 0.7 - 3, (sy + ey) / 2, ex, ey);
+    context.strokeStyle = color(tone, 0.92);
+    context.lineWidth = width;
+    context.stroke();
+    context.beginPath();
+    context.moveTo(sx - width * 0.18, sy);
+    context.quadraticCurveTo(sx + (ex - sx) * 0.6, (sy + ey) / 2, ex - 1, ey - 2);
+    context.lineWidth = Math.max(1, width * 0.3);
+    context.strokeStyle = color(shine, 0.48);
+    context.stroke();
   };
-  const horizontalShift = direction === 'left' ? -8 : direction === 'right' ? 8 : 0;
-  const headCenter = 128 + horizontalShift;
-  if (style === 'topknot') {
-    fill(shadow, headCenter - 9, 18, 18, 13);
-    fill(middle, headCenter - 6, 16, 13, 11);
-    fill(highlight, headCenter - 3, 17, 6, 3);
-    fill(shadow, headCenter - 4, 27, 10, 4);
-  } else if (style === 'long') {
-    const locks = direction === 'left'
-      ? [144]
-      : direction === 'right'
-        ? [78]
-        : [91, 155];
-    for (const x of locks) {
-      fill(shadow, x, 53, 11, 56);
-      fill(middle, x + 2, 55, 7, 48);
-      fill(highlight, x + 3, 58, 3, 30);
-      fill(shadow, x - 1, 103, 13, 11);
+  if (style === 'waved') {
+    // Small curved locks follow the existing fringe instead of covering eyes.
+    if (!covered) {
+      for (let i = -1; i <= 1; i += 1) {
+        const x = cx + i * 9;
+        strand(x - 4, head.top + 9, x + 3, head.top + 16 + Math.abs(i) * 2, 3, shadow);
+      }
     }
-  } else if (style === 'braided') {
-    const braidX = direction === 'left' ? 146 : direction === 'right' ? 85 : 154;
-    for (let step = 0; step < 7; step += 1) {
-      const y = 65 + step * 7;
-      const shift = step % 2 === 0 ? -3 : 2;
-      fill(shadow, braidX + shift - 3, y, 13, 9);
-      fill(middle, braidX + shift, y + 1, 7, 6);
-      fill(highlight, braidX + shift + 1, y + 1, 3, 3);
+  } else if (style === 'long' || style === 'braided') {
+    const sideX = direction === 'left' ? cx + 13 : direction === 'right' ? cx - 15 : cx + head.edge;
+    const rootY = covered ? head.bottom - 4 : head.top + 20;
+    const endY = classId === 'mage' ? 103 : classId === 'rogue' ? 94 : head.bottom + 31;
+    if (style === 'long') {
+      strand(sideX, rootY, sideX + 2, endY, covered ? 5 : 7, shadow);
+      if (direction === 'down' && !covered) strand(cx - head.edge, rootY, cx - head.edge - 3, endY - 5, 5, shadow);
+    } else {
+      // Interwoven narrow locks, not a stack of conspicuous rectangles.
+      strand(sideX, rootY, sideX + 2, endY, 4, shadow);
+      for (let y = rootY + 5; y < endY - 4; y += 7) {
+        const offset = Math.round((y - rootY) * 2 / (endY - rootY));
+        context.fillStyle = color(y % 2 ? shadow : shine, 0.82);
+        context.beginPath();
+        context.ellipse(sideX + offset + ((y - rootY) % 14 < 7 ? -2 : 2), y, 2.7, 4, 0.3, 0, Math.PI * 2);
+        context.fill();
+      }
     }
-    fill(shadow, braidX, 112, 5, 8);
-  } else if (style === 'mohawk') {
-    for (let step = 0; step < 5; step += 1) {
-      const height = 12 + (2 - Math.abs(2 - step)) * 4;
-      fill(shadow, headCenter - 22 + step * 10, 31 - height, 9, height + 12);
-      fill(middle, headCenter - 20 + step * 10, 32 - height, 5, height + 10);
-      fill(highlight, headCenter - 19 + step * 10, 34 - height, 3, 8);
-    }
-  } else if (style === 'shaved') {
-    // A close shave leaves a subtle hairline instead of adding another tuft.
-    fill(shadow, headCenter - 24, 43, 48, 5);
-    fill(middle, headCenter - 20, 46, 40, 2);
-  } else if (style === 'waved') {
-    const waves = direction === 'left'
-      ? [{ x: 90, y: 37 }, { x: 137, y: 36 }]
-      : direction === 'right'
-        ? [{ x: 89, y: 36 }, { x: 136, y: 37 }]
-        : [{ x: 97, y: 37 }, { x: 145, y: 36 }];
-    for (const wave of waves) {
-      fill(shadow, wave.x, wave.y, 14, 12);
-      fill(middle, wave.x + 3, wave.y + 1, 10, 8);
-      fill(highlight, wave.x + 6, wave.y + 2, 4, 3);
-    }
-    fill(middle, 111 + horizontalShift, 47, 30, 5);
+  } else if (style === 'topknot' && !covered && classId !== 'adept') {
+    context.fillStyle = color(shadow);
+    context.beginPath();
+    context.ellipse(cx, head.top - 2, 8, 7, 0, 0, Math.PI * 2);
+    context.fill();
+    context.fillStyle = color(shine, 0.45);
+    context.beginPath();
+    context.ellipse(cx - 2, head.top - 4, 3.5, 2, 0, 0, Math.PI * 2);
+    context.fill();
+  } else if (style === 'mohawk' && !covered) {
+    // A compact swept crest, rooted into the hairline; no detached spikes.
+    context.fillStyle = color(shadow, 0.96);
+    context.beginPath();
+    context.moveTo(cx - 7, head.top + 10);
+    context.quadraticCurveTo(cx - 9, head.top, cx - 4, head.top - 5);
+    context.quadraticCurveTo(cx + 3, head.top - 9, cx + 8, head.top - 2);
+    context.lineTo(cx + 8, head.top + 11);
+    context.closePath();
+    context.fill();
+    strand(cx - 2, head.top + 4, cx + 2, head.top - 5, 2.3, shine);
   }
+  context.restore();
 }
 
 function recolorChoices(
@@ -130,8 +164,17 @@ function recolorChoices(
       const blue = image.data[index + 2];
       const brightness = red * 0.299 + green * 0.587 + blue * 0.114;
 
-      const headZone = y < 104 && x > 58 && x < 198;
-      const blueHair = headZone && blue > red * 1.13 && blue > green * 1.02 && red < 155 && brightness < 190;
+      // Restrict hair tint to the painted HAIR. The old global y<104 mask
+      // included the mage's blue hat and even the characters' blue irises.
+      const landmarks = headLandmarks[appearance.classId];
+      const head = landmarks.hair;
+      const topLimit = appearance.classId === 'mage' ? 63 : head.top - 5;
+      const headZone = y >= topLimit && y < head.bottom + 5 &&
+        x >= head.cx - head.edge - 8 && x <= head.cx + head.edge + 8;
+      const eyeZone = direction === 'down' && Math.abs(y - landmarks.eyes.y) <= 4 &&
+        (Math.abs(x - landmarks.eyes.left) <= 4 || Math.abs(x - landmarks.eyes.right) <= 4);
+      const blueHair = headZone && !eyeZone &&
+        blue > red * 1.13 && blue > green * 1.02 && red < 155 && brightness < 190;
       const faceZone = direction === 'down'
         ? x >= 82 && x <= 174 && y >= 44 && y <= 101
         : direction === 'left'
@@ -169,7 +212,8 @@ function recolorChoices(
       const goldAccent = trimZone && red > 120 && green > 85 && blue < green * .78
         && green > red * .46 && red > green * 1.13;
       if (goldAccent) selected = shadeColor(trim, brightness);
-      else if (blueHair) selected = shadeColor(hair, brightness);
+      else if (blueHair) selected = appearance.hairStyle.toLowerCase() === 'shaved'
+        ? shadeColor(skin, brightness * 0.70) : shadeColor(hair, brightness);
       else if (warmSkin) selected = shadeColor(skin, brightness);
       else if (classFabric) selected = shadeColor(cloth, brightness);
       if (!selected) continue;
@@ -181,11 +225,11 @@ function recolorChoices(
   }
 
   context.putImageData(image, 0, 0);
-  paintHairStyle(context, hair, direction, appearance.hairStyle.toLowerCase());
+  paintHairStyle(context, hair, direction, appearance.hairStyle.toLowerCase(), appearance.classId);
   paintFaceAndAccessories(context, direction, appearance, skin, hair, trim);
 }
 
-/** Pixel-aligned overlays remain attached to every pose and viewing angle. */
+/** Tiny details aligned with the painted face and existing headgear. */
 function paintFaceAndAccessories(
   context: CanvasRenderingContext2D,
   direction: Direction,
@@ -194,88 +238,107 @@ function paintFaceAndAccessories(
   hair: [number, number, number],
   trim: [number, number, number],
 ) {
-  const put = (color: [number, number, number], x: number, y: number, w: number, h: number) => {
-    context.fillStyle = `rgb(${color.join(',')})`;
-    context.fillRect(x, y, w, h);
-  };
+  const anchors = headLandmarks[appearance.classId];
   const front = direction === 'down';
   const side = direction === 'left' || direction === 'right';
-  // Class illustrations do not share facial landmarks (the rogue and mage's
-  // heads sit lower). Keep the details on the face rather than on their armor.
-  const faceY = appearance.classId === 'warrior' || appearance.classId === 'adept' ? 51 : 70;
-  const beardY = faceY + 17;
-  const eyes = rgbFromHex(appearance.eyeColor ?? '#537894', [83, 120, 148]);
+  const left = direction === 'left';
+  const color = (rgb: [number, number, number], alpha = 1) =>
+    `rgba(${rgb.join(',')},${alpha})`;
+  context.save();
+  // Tint the illustration's iris; do not overlay eyes with 4x3 squares.
   if (appearance.eyeColor && direction !== 'up') {
-    const iris = shadeColor(eyes, 156);
-    const shine = shadeColor(eyes, 202);
-    if (front) {
-      for (const x of [119, 134]) {
-        put(iris, x, faceY, 4, 3);
-        put(shine, x + 1, faceY, 1, 1);
-      }
-    } else if (side) {
-      const x = direction === 'left' ? 110 : 143;
-      put(iris, x, faceY, 3, 3);
-      put(shine, x + 1, faceY, 1, 1);
+    const chosen = rgbFromHex(appearance.eyeColor, [83, 120, 148]);
+    const dots = front
+      ? [anchors.eyes.left, anchors.eyes.right]
+      : [anchors.eyes.left + (left ? -9 : 12)];
+    for (const x of dots) {
+      context.fillStyle = color(shadeColor(chosen, 132), 0.82);
+      context.beginPath();
+      context.ellipse(x, anchors.eyes.y + (side ? -3 : 0), 1.65, 2.1, 0, 0, 2 * Math.PI);
+      context.fill();
+      context.fillStyle = 'rgba(255,255,255,0.62)';
+      context.fillRect(x - 0.6, anchors.eyes.y - 1.7, 1, 1);
     }
   }
-  const faceStyle = appearance.facialHair?.toLowerCase() ?? 'none';
-  const facialColor = shadeColor(hair, 80);
-  if (front && faceStyle !== 'none') {
-    if (faceStyle === 'stubble') {
-      context.fillStyle = `rgba(${hair.join(',')},.5)`;
-      for (let i = 0; i < 12; i += 1) {
-        const x = 113 + (i * 7) % 27;
-        const y = beardY + Math.floor(i / 4) * 3;
-        context.fillRect(x, y, 2, 2);
+  const facial = appearance.facialHair?.toLowerCase() ?? 'none';
+  if (facial !== 'none' && direction !== 'up') {
+    const beard = shadeColor(hair, 71);
+    if (front) {
+      const mid = (anchors.eyes.left + anchors.eyes.right) / 2;
+      const y = anchors.chin - 6;
+      context.strokeStyle = color(beard, facial === 'stubble' ? 0.42 : 0.8);
+      context.lineWidth = facial === 'stubble' ? 2 : 3;
+      context.lineCap = 'round';
+      context.beginPath();
+      context.moveTo(mid - 5, y);
+      context.quadraticCurveTo(mid - 2, y - 2, mid, y);
+      context.quadraticCurveTo(mid + 2, y - 2, mid + 5, y);
+      context.stroke();
+      if (facial === 'beard') {
+        context.beginPath();
+        context.ellipse(mid, anchors.chin - 2, 9, 6, 0, 0, Math.PI);
+        context.strokeStyle = color(beard, 0.75);
+        context.lineWidth = 4;
+        context.stroke();
       }
-    } else if (faceStyle === 'mustache' || faceStyle === 'beard') {
-      put(facialColor, 113, beardY, 12, 3);
-      put(facialColor, 130, beardY, 12, 3);
-      if (faceStyle === 'beard') {
-        put(facialColor, 110, beardY + 4, 7, 10);
-        put(facialColor, 137, beardY + 4, 7, 10);
-        put(facialColor, 116, beardY + 12, 23, 5);
-        put(shadeColor(hair, 120), 119, beardY + 13, 15, 3);
-      }
-    }
-  } else if (side && faceStyle !== 'none') {
-    const left = direction === 'left';
-    const x = left ? 96 : 153;
-    if (faceStyle === 'stubble') {
-      context.fillStyle = `rgba(${hair.join(',')},.45)`;
-      for (let i = 0; i < 5; i += 1) context.fillRect(x, beardY - 3 + i * 3, 3, 2);
-    } else {
-      put(facialColor, x, beardY, 7, faceStyle === 'beard' ? 14 : 4);
-      if (faceStyle === 'beard') put(facialColor, left ? x + 2 : x - 6, beardY + 11, 11, 4);
+    } else if (side) {
+      context.fillStyle = color(beard, 0.55);
+      context.beginPath();
+      context.ellipse(left ? anchors.eyes.left - 7 : anchors.eyes.right + 3, anchors.chin - 5, 3, facial === 'beard' ? 6 : 2, 0, 0, Math.PI * 2);
+      context.fill();
     }
   }
   const accessory = appearance.headwear?.toLowerCase() ?? 'none';
   if (accessory === 'headband' || accessory === 'circlet') {
-    const metal = accessory === 'circlet';
-    const accent = metal ? trim : shadeColor(hair, 115);
-    const x = direction === 'left' ? 93 : direction === 'right' ? 115 : 100;
-    const w = side ? 43 : 56;
-    const headbandY = appearance.classId === 'warrior' ? 37 : appearance.classId === 'adept' ? 36 : appearance.classId === 'rogue' ? 53 : 46;
-    put(shadeColor(accent, 85), x, headbandY, w, 5);
-    put(accent, x + 2, headbandY + 1, w - 4, 2);
-    if (metal && direction !== 'up') put(shadeColor(trim, 180), x + Math.floor(w / 2), headbandY - 1, 5, 5);
+    // A fine accent follows the EXISTING headband / hood seam / hat band.
+    const { x, y } = anchors.ornament;
+    const cx = x + (left ? -10 : direction === 'right' ? 9 : 0);
+    if (accessory === 'headband') {
+      context.beginPath();
+      context.moveTo(cx - 10, y + 1);
+      context.quadraticCurveTo(cx, y - 2, cx + 10, y + 1);
+      context.strokeStyle = color(shadeColor(trim, 98), 0.7);
+      context.lineWidth = 2;
+      context.stroke();
+    } else {
+      context.fillStyle = color(shadeColor(trim, 86));
+      context.beginPath();
+      context.moveTo(cx, y - 4);
+      context.lineTo(cx + 3.5, y);
+      context.lineTo(cx, y + 4);
+      context.lineTo(cx - 3.5, y);
+      context.closePath();
+      context.fill();
+      context.fillStyle = color(shadeColor(trim, 210), 0.85);
+      context.beginPath();
+      context.ellipse(cx - 0.5, y - 1, 1.3, 1.5, 0, 0, Math.PI * 2);
+      context.fill();
+    }
   } else if (accessory === 'earring' && direction !== 'up') {
-    const x = direction === 'left' ? 95 : direction === 'right' ? 159 : 158;
-    const y = faceY + 13;
-    put(shadeColor(trim, 90), x, y, 5, 7);
-    put(trim, x + 1, y + 1, 3, 4);
-    put(skin, x + 2, y + 3, 1, 2);
+    const earX = front ? anchors.eyes.right + 11 : left ? anchors.eyes.left - 14 : anchors.eyes.right + 13;
+    const earY = anchors.eyes.y + 11;
+    context.strokeStyle = color(shadeColor(trim, 125), 0.85);
+    context.lineWidth = 1.7;
+    context.beginPath();
+    context.ellipse(earX, earY, 2, 3, 0, 0, 2 * Math.PI);
+    context.stroke();
   }
+  context.restore();
 }
 
 /**
- * Pose changes are continuously warped from the intact original painting,
- * rather than cutting rectangular boot pieces out of the character.
+ * Gentle articulated stride applied to the ORIGINAL, intact drawing.
+ *
+ * The previous walker cleared rectangles around the boots and pasted them
+ * elsewhere. Its source rectangles started part-way down the shins, so the
+ * legs visibly disconnected from the body. Here every output pixel samples
+ * the complete original image through a continuously varying displacement.
+ * At the hips the displacement is zero; at the knee it bends and the foot
+ * swings/lifts. No piece of the legs is ever cut out or pasted over the torso.
+ * This is a deliberately restrained in-between animation, not hand-painted
+ * walk frames; it keeps the original excellent character illustrations intact.
  */
-const strideAnatomy: Record<HeroAppearance['classId'], {
-  hips: number; feet: number; center: number; minX: number; maxX: number;
-}> = {
+const strideAnatomy: Record<HeroAppearance['classId'], { hips: number; feet: number; center: number; minX: number; maxX: number }> = {
   warrior: { hips: 169, feet: 244, center: 136, minX: 99, maxX: 184 },
   rogue: { hips: 166, feet: 237, center: 135, minX: 96, maxX: 176 },
   adept: { hips: 174, feet: 250, center: 131, minX: 80, maxX: 186 },
@@ -296,6 +359,7 @@ function applyWalkPose(
   const frame = HERO_WALK_POSES.indexOf(pose as (typeof HERO_WALK_POSES)[number]);
   if (frame < 0) return;
   const anatomy = strideAnatomy[classId];
+  // Two alternating steps. Each stride has a passing and a planted frame.
   const stride = [0, 0.65, 1, 0, -0.65, -1][frame];
   const bob = [0, -2, -3, 0, -2, -3][frame];
   const source = context.getImageData(0, 0, HERO_FRAME_SIZE, HERO_FRAME_SIZE);
@@ -303,13 +367,16 @@ function applyWalkPose(
   output.data.set(source.data);
   const side = direction === 'left' || direction === 'right';
   const facing = direction === 'left' ? -1 : 1;
+
   if (stride !== 0) {
-    for (let y = anatomy.hips; y < HERO_FRAME_SIZE; y++) {
+    for (let y = anatomy.hips; y < HERO_FRAME_SIZE; y += 1) {
       const position = (y - anatomy.hips) / (anatomy.feet - anatomy.hips);
       const flex = smoothstep(position);
       if (flex <= 0) continue;
       const knee = Math.sin(Math.PI * Math.min(1, position));
-      for (let x = anatomy.minX; x <= anatomy.maxX; x++) {
+      for (let x = anatomy.minX; x <= anatomy.maxX; x += 1) {
+        // Fade the deformation at its edges. Swords, shield, cape edges and
+        // surrounding scenery never move with the legs by accident.
         const edge = Math.min((x - anatomy.minX) / 10, (anatomy.maxX - x) / 10, 1);
         const fade = smoothstep(edge);
         const leg = Math.tanh((x - anatomy.center) / (side ? 8 : 5));
@@ -317,6 +384,8 @@ function applyWalkPose(
         const step = (side ? 8 : 5.5) * footSwing * flex * fade;
         const kneeBend = -stride * leg * 2.5 * knee * fade;
         const lift = Math.max(0, footSwing) * 7 * flex * fade;
+        // Inverse sample keeps the silhouette continuous instead of creating
+        // a conspicuous rectangular vacancy at the knee/ankle.
         const sx = Math.max(0, Math.min(255, Math.round(x - (step + kneeBend) * (side ? facing : 1))));
         const sy = Math.max(0, Math.min(255, Math.round(y + lift)));
         const dst = (y * HERO_FRAME_SIZE + x) * 4;
@@ -382,10 +451,51 @@ export function createCustomizedHeroFrame(
   appearance: HeroAppearance,
   options: HeroFrameOptions = {},
 ): HTMLCanvasElement {
+  if (options.modularAtlas && options.modularMask) {
+    const step = options.pose?.startsWith('walk-') ? Number(options.pose.slice(5)) + 1 : 0;
+    return renderModularHeroFrame(options.modularAtlas, options.modularMask, direction, appearance, step);
+  }
   const canvas = cropDirectionalSpriteFrame(atlas, direction);
   const context = canvas.getContext('2d', { willReadFrequently: true });
   if (!context) throw new Error('Could not create the hero sprite canvas.');
   recolorChoices(context, direction, appearance);
   applyWalkPose(context, options.pose ?? 'idle', direction, appearance.classId);
+  return canvas;
+}
+
+/** Pre-drawn directional art: no rectangular limb cutting or horizontal sliding. */
+export const modularHeroAsset = (classId: HeroAppearance['classId'], bodyType: 'male' | 'female',
+  facing: Direction, pose: HeroPose) =>
+  `modular-heroes/${classId}-${bodyType}-${facing}-${pose === 'attack' ? 'idle' : pose}.png`;
+
+/** Palette substitution preserves contours, highlights and shadow relationships. */
+export function colorizeModularHero(source: CanvasImageSource, appearance: HeroAppearance): HTMLCanvasElement {
+  const canvas = document.createElement('canvas');
+  canvas.width = HERO_FRAME_SIZE; canvas.height = HERO_FRAME_SIZE;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+  ctx.drawImage(source, 0, 0, HERO_FRAME_SIZE, HERO_FRAME_SIZE);
+  const image = ctx.getImageData(0, 0, HERO_FRAME_SIZE, HERO_FRAME_SIZE);
+  const hair = rgbFromHex(appearance.hairColor, [55, 80, 157]);
+  const cloth = rgbFromHex(appearance.clothingColor, [165, 59, 58]);
+  const skin = rgbFromHex(appearance.skin, [215, 165, 120]);
+  const trim = rgbFromHex(appearance.trimColor ?? '#cfa659', [207, 166, 89]);
+  const data = image.data;
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] < 32) continue;
+    const r = data[i], g = data[i + 1], b = data[i + 2];
+    const light = Math.max(r,g,b) / 255;
+    let target: number[] | undefined;
+    if (b > r * 1.35 && b > g * 1.12 && b > 45) target = hair;
+    else if (r > g * 1.52 && r > b * 1.35 && r > 55) target = cloth;
+    else if (r > 105 && g > 58 && r > g * 1.11 && g > b * 1.08) target = skin;
+    else if (r > 100 && g > 75 && b < g * 0.62 && r > g * 1.08) target = trim;
+    if (target) {
+      const shade = 0.32 + light * 0.84;
+      data[i] = Math.min(255, target[0] * shade);
+      data[i + 1] = Math.min(255, target[1] * shade);
+      data[i + 2] = Math.min(255, target[2] * shade);
+    }
+  }
+  ctx.putImageData(image, 0, 0);
   return canvas;
 }

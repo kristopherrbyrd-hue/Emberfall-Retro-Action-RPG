@@ -3389,7 +3389,11 @@ export class AdventureEngine {
     this.tickMaelisAlly(delta, dt);
     this.tickRespawns(delta);
     this.tickProjectiles(delta, dt);
-    if (!this.worldProgress.activeDungeon) this.refreshGuideDirection();
+    this.guideRouteElapsedMs += delta;
+    if (!this.worldProgress.activeDungeon && this.guideRouteElapsedMs >= 200) {
+      this.guideRouteElapsedMs = 0;
+      this.refreshGuideDirection();
+    }
     if (this.tickRemainder >= 240) {
       this.tickRemainder = 0;
       this.refreshEnemyHud();
@@ -5765,6 +5769,8 @@ export class AdventureEngine {
     if (!this.isEnemyBlocked(enemy, nextX, enemy.y)) enemy.x = nextX;
     if (!this.isEnemyBlocked(enemy, enemy.x, nextY)) enemy.y = nextY;
   }
+
+  private guideRouteElapsedMs = 0;
 
   private tickEnemies(delta: number, dt: number): void {
     const player = this.snapshot.player;
