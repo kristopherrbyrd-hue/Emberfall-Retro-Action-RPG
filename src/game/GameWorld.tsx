@@ -91,6 +91,12 @@ class EmberfallScene extends Phaser.Scene {
 
   private visibleCellIds = new Set<string>();
 
+  // Props were previously reconstructed from the entire 60-cell overworld
+  // every frame. Refresh static art at 10 Hz, or immediately on cell changes.
+  private cachedWorldProps: WorldProp[] = [];
+  private cachedWorldPropsCell = '';
+  private worldPropsRefreshedAt = -Infinity;
+
   private renderedCenterCellId = '';
 
   private renderedMarchesTide: 'low' | 'high' = 'low';
@@ -209,6 +215,9 @@ class EmberfallScene extends Phaser.Scene {
       this.terrainCells.clear();
       this.terrainScenery = [];
       this.visibleCellIds.clear();
+      this.cachedWorldProps = [];
+      this.cachedWorldPropsCell = '';
+      this.worldPropsRefreshedAt = -Infinity;
       this.renderedCenterCellId = '';
       this.renderedBellSignature = '';
       this.renderedMarchesTide = 'low';
@@ -383,17 +392,33 @@ class EmberfallScene extends Phaser.Scene {
         this.drawWorldMap(hero.x, hero.y);
       }
     }
-    const visibleProps = this.engine.getProps().filter((prop) => {
+    // Keep the 3x3 terrain streaming area, but only update dynamic art near
+    // the camera. The extra half-cell margin prevents pop-in at boundaries.
+    const drawHalfWidth = this.cameras.main.width / (2 * this.cameras.main.zoom) + WORLD_CELL_WIDTH / 2;
+    const drawHalfHeight = this.cameras.main.height / (2 * this.cameras.main.zoom) + WORLD_CELL_HEIGHT / 2;
+    const closeToCamera = (x: number, y: number) =>
+      Math.abs(x - hero.x) <= drawHalfWidth && Math.abs(y - hero.y) <= drawHalfHeight;
+    const refreshWorldProps = Boolean(dungeonVisit) ||
+      this.cachedWorldPropsCell !== cellId ||
+      this.time.now - this.worldPropsRefreshedAt >= 100;
+    if (refreshWorldProps) {
+      this.cachedWorldProps = this.engine.getProps();
+      this.cachedWorldPropsCell = cellId;
+      this.worldPropsRefreshedAt = this.time.now;
+    }
+    const visibleProps = this.cachedWorldProps.filter((prop) => {
       if (dungeonVisit) return true;
       const propCellId = worldCellAt(prop.x, prop.y)?.id;
-      return Boolean(propCellId && this.visibleCellIds.has(propCellId));
+      return Boolean(propCellId && this.visibleCellIds.has(propCellId) &&
+        closeToCamera(prop.x, prop.y));
     });
-    this.drawWorldProps(visibleProps, fresh.roomId, fresh.keyFound, fresh.gateOpen);
+    if (refreshWorldProps) this.drawWorldProps(visibleProps, fresh.roomId, fresh.keyFound, fresh.gateOpen);
     this.drawPlayer(hero, this.time.now, this.engine.getAttackAnimation());
     const visibleEnemies = this.engine.getEnemies().filter((actor) => {
       if (dungeonVisit) return true;
       const enemyCellId = worldCellAt(actor.x, actor.y)?.id;
-      return Boolean(enemyCellId && this.visibleCellIds.has(enemyCellId));
+      return Boolean(enemyCellId && this.visibleCellIds.has(enemyCellId) &&
+        closeToCamera(actor.x, actor.y));
     });
     this.drawEnemies(visibleEnemies);
     this.drawEffects(this.engine.getProjectiles(), this.engine.getEffects());
