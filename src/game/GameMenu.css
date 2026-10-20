@@ -1,0 +1,21 @@
+.game-menu-trigger { display:flex; align-items:center; gap:5px; flex-shrink:0; color:inherit; background:rgba(25,25,23,.35); border:1px solid rgba(239,224,183,.5); padding:8px 6px; font-size:9px; letter-spacing:.08em; }
+.journey-menu { max-width:430px; max-height:calc(100% - 24px); overflow-y:auto; touch-action:pan-y; overscroll-behavior:contain; }
+.journey-menu .overlay-heading { display:flex; justify-content:space-between; align-items:center; padding:18px 20px; border-bottom:1px solid #cfc3a9; }
+.journey-menu .overlay-heading small { font-size:10px; letter-spacing:.14em; }
+.journey-menu .overlay-heading h2 { font-size:23px; margin:3px 0 0; }
+.journey-menu .overlay-heading button { padding:10px; }
+.journey-menu-options { padding:16px 20px; display:grid; gap:12px; }
+.journey-menu-option { display:flex; gap:12px; align-items:center; text-align:left; padding:14px 12px; border:1px solid #cfc3a9; background:rgba(255,255,255,.22); width:100%; min-height:64px; }
+.journey-menu-option > svg { width:21px; flex-shrink:0; }
+.journey-menu-option span { flex:1; min-width:0; }
+.journey-menu-option b { display:block; font-size:14px; }
+.journey-menu-option small { display:block; font-size:11px; opacity:.7; margin-top:4px; line-height:1.5; }
+.journey-menu-option strong { font-size:12px; color:#7a3c32; }
+.journey-menu-option:disabled { opacity:.45; cursor:not-allowed; }
+.journey-volume-control { display:grid; gap:8px; padding:2px 12px 10px; color:#352f25; }
+.journey-volume-control > span { display:flex; justify-content:space-between; align-items:center; font-size:12px; }
+.journey-volume-control output { font-variant-numeric:tabular-nums; color:#7a3c32; }
+.journey-volume-control input { width:100%; accent-color:#7a3c32; cursor:pointer; }
+.journey-menu-note { font-size:11px; line-height:1.6; opacity:.75; margin:0; }
+.journey-menu-error { font-size:12px; line-height:1.5; padding:12px; background:#f2d8cc; color:#792d21; }
+.journey-menu-resume { padding:13px; background:#4b6250; color:#fff5dc; font-size:13px; }

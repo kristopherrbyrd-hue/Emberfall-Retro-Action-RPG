@@ -1,0 +1,26 @@
+{
+  "id": "./",
+  "name": "Emberfall: A Handheld Adventure",
+  "short_name": "Emberfall",
+  "description": "Explore the world of Emberfall in an original handheld-inspired fantasy adventure.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#080807",
+  "theme_color": "#080807",
+  "icons": [
+    {
+      "src": "icons/emberfall-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/emberfall-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

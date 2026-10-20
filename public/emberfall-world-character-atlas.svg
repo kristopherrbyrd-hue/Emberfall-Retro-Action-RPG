@@ -1,0 +1,126 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="768" height="144" viewBox="0 0 768 144" shape-rendering="crispEdges">
+  <!-- Elder Rowan: weathered sage robes, silver beard, broad woven hat, and walking staff. -->
+  <g transform="translate(0 0)">
+    <path fill="#302c2a" d="M38 16h52v4h10v8h6v16h-8v8h-8v12h6v12h-6v20h-8v14h-8v12h-8v8H42v-8h-8v-12h-8V96h-6V76h6V64h-8V52h-8V36h8V24h8v-8z"/>
+    <path fill="#7e6847" d="M30 20h62v4h8v8h6v14H20V34h6v-6h4z"/>
+    <path fill="#b29562" d="M34 24h54v4h8v6h6v6H20v-6h8v-6h6z"/>
+    <path fill="#d0b77d" d="M38 26h42v4h8v4h8v4H28v-4h8v-4h2z"/>
+    <path fill="#514535" d="M40 18h46v4h-8v4H48v-4h-8z"/>
+    <rect x="50" y="18" width="24" height="4" fill="#d5c18b"/>
+    <path fill="#ece0bd" d="M38 42h8v-4h8v4h20v-4h8v4h8v8h-8v8h-8v4H48v-4h-8v-8h-8v-4h6z"/>
+    <path fill="#d0bd99" d="M40 48h8v-4h6v4h8v-4h8v4h8v-4h6v8h-6v6H48v-6h-8z"/>
+    <path fill="#f2dfb7" d="M48 48h6v4h-6zM72 48h6v4h-6z"/>
+    <path fill="#c9a777" d="M54 54h20v4H54z"/>
+    <path fill="#43513e" d="M38 62h8v-4h8v4h24v-4h8v4h8v12h-6v10h4v14h-8v10h-8v8H42v-8h-8v-10h-8V84h4V74h-6V64h8v-2z"/>
+    <path fill="#647853" d="M42 66h8v-4h8v4h20v-4h8v6h8v8h-8v10h4v12h-8v8h-8v8H46v-8h-8v-8h-8V84h4V72h8z"/>
+    <path fill="#8c9869" d="M44 70h10v-4h8v4h14v-4h6v8h8v4h-8v8h-8v-4H54v-4h-8z"/>
+    <path fill="#394735" d="M28 72h10v12h-6v8h-4zM86 72h10v20h-4v-8h-6z"/>
+    <path fill="#d1b27e" d="M48 84h34v4H48zM52 88h26v4H52z"/>
+    <path fill="#77563b" d="M42 96h44v4H42zM38 106h12v14H38zM78 106h12v14H78z"/>
+    <path fill="#4b372e" d="M34 116h18v8H32v-4h2zM78 116h18v8h-2v4H76v-8h2z"/>
+    <path fill="#876141" d="M38 108h8v8h-8zM82 108h4v8h-4z"/>
+    <path fill="#5b4835" d="M100 48h4v16h-4v12h-4v10h-4v8h-4v-4h4v-8h4V70h4V58z"/>
+    <path fill="#b78a51" d="M96 68h8v8h-4v8h-4z"/>
+    <rect x="96" y="42" width="8" height="6" fill="#d7bf88"/>
+    <rect x="98" y="44" width="4" height="2" fill="#f1dda8"/>
+    <rect x="58" y="100" width="12" height="4" fill="#d9c77e"/>
+    <rect x="62" y="100" width="4" height="4" fill="#f0e5b2"/>
+  </g>
+
+  <!-- Mossling: low rounded body, moss cap, bright eyes, and short planted feet. -->
+  <g transform="translate(128 0)">
+    <path fill="#244336" d="M34 36h12v-6h30v6h12v8h8v12h6v20h-8v10h-8v8H76v6H48v-6H36v-8h-8V78h-8V56h6V44h8z"/>
+    <path fill="#4c9b60" d="M38 40h10v-6h26v6h12v8h8v12h4v16h-8v8h-8v6H72v6H50v-6H38v-8h-8V76h-6V58h6V46h8z"/>
+    <path fill="#73c875" d="M42 42h10v-6h18v4h10v6h8v8h-8v4H56v-4h-8v4h-8v-6h-6v-8h8z"/>
+    <path fill="#99dc7e" d="M42 44h10v-4h14v4h-8v4h-8v4h-8zM76 48h8v4h4v6h-8v-4h-8v-4h4z"/>
+    <path fill="#315940" d="M40 78h16v4h20v-4h16v8h-8v8H72v4H48v-4H38v-8h-6v-6h8z"/>
+    <path fill="#3d7d4e" d="M50 82h26v4H50z"/>
+    <path fill="#f0f0bb" d="M42 58h10v10H42zM76 58h10v10H76z"/>
+    <path fill="#284034" d="M46 60h4v8h-4zM80 60h4v8h-4z"/>
+    <rect x="44" y="60" width="2" height="2" fill="#fff4c8"/>
+    <rect x="78" y="60" width="2" height="2" fill="#fff4c8"/>
+    <path fill="#29513c" d="M56 74h18v4H56zM60 78h10v2H60z"/>
+    <path fill="#b6e68b" d="M34 60h4v8h-4zM88 68h4v8h-4zM46 86h8v4h-8z"/>
+    <path fill="#547b45" d="M28 80h10v8H28zM82 84h10v8H82z"/>
+    <path fill="#ddd584" d="M60 72h8v2h-8z"/>
+  </g>
+
+  <!-- Thornwisp: a thorn-crowned ember spirit with a pointed tail and hot inner core. -->
+  <g transform="translate(256 0)">
+    <path fill="#493b3d" d="M54 24h12v8h10v8h10v10h8v12h-8v10h-8v10h-8v10h-8v12h-8V94h-8V84h-8V74h-8V64h-8V50h8V40h10v-8h10z"/>
+    <path fill="#b64c38" d="M56 30h8v8h10v8h10v8h8v8h-8v8h-8v10h-8v8h-8v12h-4V86h-8v-8h-8v-8h-8v-8h-8V52h8v-8h10v-8h10z"/>
+    <path fill="#ed7540" d="M58 38h8v8h10v8h8v8h-8v8h-8v8h-8v10h-4V76h-8v-8h-8v-8h-8v-6h8v-6h10v-8h8z"/>
+    <path fill="#f8ad56" d="M58 48h8v6h8v8h-8v8h-8v8h-4v-8h-8v-8h-6v-4h8v-6h10z"/>
+    <path fill="#ffe2a0" d="M58 58h8v8h-8zM60 70h4v6h-4z"/>
+    <path fill="#673c36" d="M40 40h8v-8h8v12h-6v8h-6v-4h-4zM72 32h8v8h10v8h-8v4h-6v-8h-6z"/>
+    <path fill="#f7d18b" d="M46 44h6v6h-6zM78 44h6v6h-6z"/>
+    <path fill="#372d32" d="M52 54h4v4h-4zM68 54h4v4h-4zM58 76h8v4h-8z"/>
+    <rect x="54" y="54" width="2" height="2" fill="#fff0ba"/>
+    <rect x="70" y="54" width="2" height="2" fill="#fff0ba"/>
+    <path fill="#cf603a" d="M30 58h8v8h-8zM82 66h8v8h-8z"/>
+    <path fill="#ffca70" d="M52 92h8v8h-8zM66 86h6v6h-6z"/>
+  </g>
+
+  <!-- Dustwing: broad scalloped wings, hooked ears, and a compact ash-purple body. -->
+  <g transform="translate(384 0)">
+    <path fill="#302d3b" d="M54 44h20v6h12v8h12v12h8v12h-8v8H84v-8H74v-8H62v10h-8v-8H42v8H30v8h-8v-8h-8V68h8V58h12v-8h12v-6h8z"/>
+    <path fill="#796b9b" d="M54 50h16v6h12v8h12v8h6v8h-8v8H82v-8H70v-8H60v12h-6V72H42v8H32v8h-8v-8h-6V70h8v-8h12v-6h12v-6z"/>
+    <path fill="#a795c2" d="M50 56h16v6h12v6h10v8h6v4h-8v6H76v-8H64v-8H54v10h-4V68H38v6h-8v6h-4v-8h8v-8h10v-4h6z"/>
+    <path fill="#594f72" d="M26 72h8v8h10v-6h10v12h8v-8h10v8h10v6H68v-4h-8v8h-8v-8H40v6H28v-8h-6v-8h4z"/>
+    <path fill="#403545" d="M50 54h8v-8h8v8h10v10h-6v14h-8v8h-8v-8h-8V64h-6v-6h10z"/>
+    <path fill="#8c7ca9" d="M52 58h16v8h-4v10h-8V64h-4z"/>
+    <path fill="#302c36" d="M48 48h6v-12h6v10h4v-8h6v12h-6v6H52v-4h-4z"/>
+    <path fill="#e8c67e" d="M52 62h4v4h-4zM64 62h4v4h-4z"/>
+    <rect x="54" y="62" width="2" height="2" fill="#fff2c1"/>
+    <rect x="66" y="62" width="2" height="2" fill="#fff2c1"/>
+    <path fill="#d3b493" d="M56 76h8v6h-8z"/>
+    <path fill="#b76f79" d="M58 82h4v6h-4z"/>
+    <path fill="#c3a8d0" d="M22 70h6v4h-6zM92 76h6v4h-6z"/>
+  </g>
+
+  <!-- Rootbound sentinel: a mossy trunk golem with root arms, branch antlers, and amber eyes. -->
+  <g transform="translate(512 0)">
+    <path fill="#382e29" d="M44 30h12v-8h8v8h10v8h10v10h8v12h8v8h-8v8h-8v8h-8v12h-8v10h-8v12h-8v-8H42v-8h-8V96h-8v-8h-8v-8h-8V68h10v-8h8V48h8v-8h8z"/>
+    <path fill="#765337" d="M46 34h10v-6h4v10h10v6h8v10h10v10h6v6h-8v10h-8v8h-8v10h-8v8h-8v10H46v-8h-8V96h-8v-8h-8v-8h-8V70h10v-8h8V50h8v-8h6z"/>
+    <path fill="#9a7045" d="M50 44h28v8h8v10h6v8h-8v8h-8v8h-8v8H48v-8h-8v-8h-8v-8h-8v-8h8v-8h8v-8h10z"/>
+    <path fill="#b08b55" d="M44 52h10v8h-6v10h-8v8h-8v-8h-4v-6h8v-8h8zM72 50h8v8h8v8h6v6h-8v-6h-8v-8h-6z"/>
+    <path fill="#4f633d" d="M34 38h12v-8h8v8h8v-8h10v8h10v8h-8v8H42v-6h-8z"/>
+    <path fill="#738650" d="M44 36h8v-4h6v8h8v-6h6v8h10v6h-8v6H46v-6h-8v-6h6z"/>
+    <path fill="#61432e" d="M32 60h10v14h-8v10h-8v8h-8v-8h8v-8h6zM82 60h10v12h6v8h8v8h-8v-4h-8v-8h-8z"/>
+    <path fill="#987044" d="M22 82h10v6h-8v8h-8v-6h6zM92 82h10v8h8v6h-8v-4h-8z"/>
+    <path fill="#d99b48" d="M44 64h8v6h-8zM72 64h8v6h-8z"/>
+    <path fill="#392d28" d="M46 64h4v4h-4zM74 64h4v4h-4z"/>
+    <rect x="46" y="64" width="2" height="2" fill="#ffe2a0"/>
+    <rect x="74" y="64" width="2" height="2" fill="#ffe2a0"/>
+    <path fill="#46352c" d="M56 78h14v6H56zM60 86h8v4h-8z"/>
+    <path fill="#bed078" d="M34 48h6v4h-6zM82 44h6v4h-6zM48 92h8v4h-8z"/>
+    <path fill="#765539" d="M42 102h12v12h-8v8h-8v-8h4zM70 102h12v10h4v8h-8v-6h-8z"/>
+  </g>
+
+  <!-- Cinderhorn: an armored ember-beast with a broad horned skull, plated back, and heavy paws. -->
+  <g transform="translate(640 0)">
+    <path fill="#382a2a" d="M42 30h12v-8h8v-8h8v8h8v8h10v8h8v8h8v12h8v14h-8v10h-8v12h-8v10h-8v12h-8v8h-8v-8h-8v8h-8v-8h-8v-12h-8v-10h-8V84h-8V72h-8V58h8V46h8v-8h8z"/>
+    <path fill="#974331" d="M46 36h10v-8h6v10h8v-8h6v8h10v8h8v10h8v12h-8v10h-8v10h-8v10h-8v12h-8v6h-8v-6h-8v-8h-8V96h-8V84h-8V72h-8V58h8V48h8v-8h8z"/>
+    <path fill="#c65a38" d="M50 42h12v-6h4v8h8v-6h4v8h10v8h8v8h4v8h-8v8h-8v10h-8v8h-8v10h-8v4h-8v-8h-8v-8h-8V88h-8V76h-6V62h8v-8h8v-8h8z"/>
+    <path fill="#e77b43" d="M54 48h12v6h8v-6h4v8h10v6h8v8h-8v8h-8v8h-8v8h-8v8h-8v-6h-8v-8h-8V76h-8v-8h8v-8h8v-8h10z"/>
+    <path fill="#71352e" d="M28 42h10v-8h8v12h-6v8h-8v-4h-4zM82 34h8v8h10v10h-8v4h-8v-8h-6v-8h4z"/>
+    <path fill="#f0d19a" d="M36 40h6v8h-6zM86 40h6v8h-6z"/>
+    <path fill="#f6d796" d="M40 38h4v8h-4zM88 38h4v8h-4z"/>
+    <path fill="#4f302d" d="M46 56h36v8H46z"/>
+    <path fill="#e9924d" d="M48 58h32v8H48z"/>
+    <path fill="#f4c26e" d="M52 60h8v4h-8zM68 60h8v4h-8z"/>
+    <path fill="#342726" d="M54 60h4v4h-4zM70 60h4v4h-4z"/>
+    <rect x="54" y="60" width="2" height="2" fill="#fff4c5"/>
+    <rect x="70" y="60" width="2" height="2" fill="#fff4c5"/>
+    <path fill="#5b302c" d="M54 70h22v12H54z"/>
+    <path fill="#c75535" d="M58 72h14v8H58z"/>
+    <path fill="#302627" d="M60 72h4v4h-4zM68 72h4v4h-4z"/>
+    <path fill="#f2d59a" d="M58 80h6v8h-6zM70 80h6v8h-6z"/>
+    <path fill="#77382d" d="M38 82h12v12h-8v14h-8v-8h4zM78 82h12v18h4v8h-8V96h-8z"/>
+    <path fill="#4c302c" d="M32 100h16v10h-4v14h-8v-8h-4zM80 100h16v8h-4v14h-8v-10h-4z"/>
+    <path fill="#af4b31" d="M34 112h10v8h-10zM82 112h10v8h-10z"/>
+    <path fill="#ffb960" d="M58 92h12v8H58zM60 102h8v6h-8z"/>
+    <path fill="#ffe3a0" d="M62 94h4v8h-4z"/>
+    <path fill="#d27842" d="M24 62h8v6h-8zM96 64h8v6h-8z"/>
+  </g>
+</svg>
