@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   android-apk:
-    name: Build installable debug APK
+    name: Build Android APK
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -34,8 +34,10 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Bundle Emberfall for offline use
-        run: npm run build
+      - name: Validate and bundle Emberfall
+        run: |
+          npm run typecheck
+          npm run build
 
       - name: Create and sync native Android app
         run: |
@@ -45,17 +47,78 @@ jobs:
       - name: Configure portrait mode and game icon
         run: |
           python3 scripts/setup_android.py
+          python3 scripts/set_android_version.py
 
-      - name: Compile installable APK
+      - name: Detect permanent signing identity
+        id: signing
+        env:
+          RELEASE_KEYSTORE: ${{ secrets.EMBERFALL_RELEASE_KEYSTORE }}
+          RELEASE_PASSWORD: ${{ secrets.EMBERFALL_RELEASE_PASSWORD }}
+        shell: bash
+        run: |
+          if [[ -n "$RELEASE_KEYSTORE" && -n "$RELEASE_PASSWORD" ]]; then
+            echo 'signed=true' >> "$GITHUB_OUTPUT"
+            echo 'Building an update APK using the permanent signing identity.'
+          elif [[ -z "$RELEASE_KEYSTORE" && -z "$RELEASE_PASSWORD" ]]; then
+            echo 'signed=false' >> "$GITHUB_OUTPUT"
+            echo '::warning::Signing secrets are not configured; building a TEST APK only. This is not guaranteed to update an existing install.'
+          else
+            echo '::error::Incomplete signing configuration; add both secrets.'
+            exit 1
+          fi
+
+      - name: Compile release candidate
+        if: steps.signing.outputs.signed == 'true'
+        working-directory: android
+        run: |
+          chmod +x ./gradlew
+          ./gradlew --no-daemon assembleRelease
+
+      - name: Sign and verify APK
+        if: steps.signing.outputs.signed == 'true'
+        env:
+          RELEASE_KEYSTORE: ${{ secrets.EMBERFALL_RELEASE_KEYSTORE }}
+          EMBERFALL_RELEASE_PASSWORD: ${{ secrets.EMBERFALL_RELEASE_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s' "$RELEASE_KEYSTORE" | base64 --decode > android/app/emberfall-release.jks
+          chmod 600 android/app/emberfall-release.jks
+          trap 'rm -f android/app/emberfall-release.jks' EXIT
+          tools="$(find "$ANDROID_HOME/build-tools" -maxdepth 1 -mindepth 1 -type d | sort -V | tail -1)"
+          unsigned=android/app/build/outputs/apk/release/app-release-unsigned.apk
+          aligned=android/app/build/outputs/apk/release/emberfall-aligned-unsigned.apk
+          signed=android/app/build/outputs/apk/release/Emberfall-Update.apk
+          "$tools/zipalign" -f 4 "$unsigned" "$aligned"
+          "$tools/apksigner" sign \
+            --ks android/app/emberfall-release.jks \
+            --ks-key-alias emberfall \
+            --ks-pass env:EMBERFALL_RELEASE_PASSWORD \
+            --key-pass env:EMBERFALL_RELEASE_PASSWORD \
+            --out "$signed" "$aligned"
+          "$tools/apksigner" verify --print-certs "$signed"
+
+      - name: Compile development-only APK
+        if: steps.signing.outputs.signed != 'true'
         working-directory: android
         run: |
           chmod +x ./gradlew
           ./gradlew --no-daemon assembleDebug
 
-      - name: Publish APK for download
+      - name: Publish permanent-signature update APK
+        if: steps.signing.outputs.signed == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: Emberfall-Android-APK
+          name: Emberfall-InPlace-Update-APK
+          path: android/app/build/outputs/apk/release/Emberfall-Update.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish test-only APK
+        if: steps.signing.outputs.signed != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Emberfall-TEST-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 30
