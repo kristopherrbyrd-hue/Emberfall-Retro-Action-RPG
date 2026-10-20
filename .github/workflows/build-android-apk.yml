@@ -2,7 +2,7 @@ name: Build Emberfall Android APK
 
 on:
   push:
-    branches: [main]
+    branches: [main, fix/emberfall-android-ui-animation]
   workflow_dispatch:
 
 permissions:
