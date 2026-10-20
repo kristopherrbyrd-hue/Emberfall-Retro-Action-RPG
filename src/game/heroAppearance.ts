@@ -269,52 +269,22 @@ function paintFaceAndAccessories(
   }
 }
 
-type WalkLegRegion = { x: number; y: number; width: number; height: number };
+/**
+ * Pose changes are continuously warped from the intact original painting,
+ * rather than cutting rectangular boot pieces out of the character.
+ */
+const strideAnatomy: Record<HeroAppearance['classId'], {
+  hips: number; feet: number; center: number; minX: number; maxX: number;
+}> = {
+  warrior: { hips: 169, feet: 244, center: 136, minX: 99, maxX: 184 },
+  rogue: { hips: 166, feet: 237, center: 135, minX: 96, maxX: 176 },
+  adept: { hips: 174, feet: 250, center: 131, minX: 80, maxX: 186 },
+  mage: { hips: 203, feet: 249, center: 134, minX: 101, maxX: 169 },
+};
 
-const walkLegRegions: Record<
-  HeroAppearance['classId'],
-  { front: [WalkLegRegion, WalkLegRegion]; side: [WalkLegRegion, WalkLegRegion] }
-> = {
-  warrior: {
-    front: [
-      { x: 82, y: 214, width: 42, height: 42 },
-      { x: 138, y: 214, width: 42, height: 42 },
-    ],
-    side: [
-      { x: 98, y: 202, width: 30, height: 54 },
-      { x: 132, y: 212, width: 30, height: 44 },
-    ],
-  },
-  rogue: {
-    front: [
-      { x: 78, y: 216, width: 46, height: 40 },
-      { x: 138, y: 216, width: 46, height: 40 },
-    ],
-    side: [
-      { x: 108, y: 188, width: 24, height: 42 },
-      { x: 136, y: 196, width: 24, height: 34 },
-    ],
-  },
-  adept: {
-    front: [
-      { x: 72, y: 214, width: 48, height: 42 },
-      { x: 138, y: 214, width: 48, height: 42 },
-    ],
-    side: [
-      { x: 101, y: 201, width: 29, height: 55 },
-      { x: 137, y: 208, width: 29, height: 48 },
-    ],
-  },
-  mage: {
-    front: [
-      { x: 99, y: 230, width: 32, height: 26 },
-      { x: 136, y: 230, width: 32, height: 26 },
-    ],
-    side: [
-      { x: 102, y: 196, width: 30, height: 60 },
-      { x: 134, y: 203, width: 30, height: 53 },
-    ],
-  },
+const smoothstep = (t: number) => {
+  const v = Math.max(0, Math.min(1, t));
+  return v * v * (3 - 2 * v);
 };
 
 function applyWalkPose(
@@ -325,59 +295,41 @@ function applyWalkPose(
 ) {
   const frame = HERO_WALK_POSES.indexOf(pose as (typeof HERO_WALK_POSES)[number]);
   if (frame < 0) return;
-  const sideFacing = direction === 'left' || direction === 'right';
-  const regions = walkLegRegions[classId][sideFacing ? 'side' : 'front'];
-  const [leftRegion, rightRegion] = direction === 'right'
-    ? [regions[1], regions[0]].map((region) => ({
-        ...region,
-        x: HERO_FRAME_SIZE - region.x - region.width,
-      }))
-    : regions;
-  const left = context.getImageData(leftRegion.x, leftRegion.y, leftRegion.width, leftRegion.height);
-  const right = context.getImageData(rightRegion.x, rightRegion.y, rightRegion.width, rightRegion.height);
-  const leftLayer = document.createElement('canvas');
-  const rightLayer = document.createElement('canvas');
-  leftLayer.width = leftRegion.width;
-  leftLayer.height = leftRegion.height;
-  rightLayer.width = rightRegion.width;
-  rightLayer.height = rightRegion.height;
-  const leftLayerContext = leftLayer.getContext('2d');
-  const rightLayerContext = rightLayer.getContext('2d');
-  if (!leftLayerContext || !rightLayerContext) return;
-  leftLayerContext.putImageData(left, 0, 0);
-  rightLayerContext.putImageData(right, 0, 0);
-  context.clearRect(leftRegion.x, leftRegion.y, leftRegion.width, leftRegion.height);
-  context.clearRect(rightRegion.x, rightRegion.y, rightRegion.width, rightRegion.height);
-
-  const stepPhase = [-1, -0.55, 0, 1, 0.55, 0][frame];
-  const verticalSign = direction === 'up' ? -1 : 1;
-  const facingSign = direction === 'left' ? -1 : 1;
-  const leftX = Math.round(sideFacing
-    ? stepPhase * 14 * facingSign
-    : stepPhase * 9);
-  const rightX = Math.round(sideFacing
-    ? -stepPhase * 10 * facingSign
-    : -stepPhase * 9);
-  const leftY = Math.round(sideFacing ? Math.max(0, -stepPhase) * 5 : stepPhase * 12 * verticalSign);
-  const rightY = Math.round(sideFacing ? Math.max(0, stepPhase) * 5 : -stepPhase * 12 * verticalSign);
-
-  const drawLeftLeg = () => context.drawImage(leftLayer, leftRegion.x + leftX, leftRegion.y + leftY);
-  const drawRightLeg = () => context.drawImage(rightLayer, rightRegion.x + rightX, rightRegion.y + rightY);
-  if (direction === 'left') {
-    drawRightLeg();
-    drawLeftLeg();
-  } else {
-    drawLeftLeg();
-    drawRightLeg();
-  }
-  // Two alternating grounded steps with a short passing pose and subtle body bounce.
-  // The whole sprite moves as one, so accessories and weapons stay attached.
+  const anatomy = strideAnatomy[classId];
+  const stride = [0, 0.65, 1, 0, -0.65, -1][frame];
   const bob = [0, -2, -3, 0, -2, -3][frame];
-  if (bob !== 0) {
-    const composed = context.getImageData(0, 0, HERO_FRAME_SIZE, HERO_FRAME_SIZE);
-    context.clearRect(0, 0, HERO_FRAME_SIZE, HERO_FRAME_SIZE);
-    context.putImageData(composed, 0, bob);
+  const source = context.getImageData(0, 0, HERO_FRAME_SIZE, HERO_FRAME_SIZE);
+  const output = context.createImageData(HERO_FRAME_SIZE, HERO_FRAME_SIZE);
+  output.data.set(source.data);
+  const side = direction === 'left' || direction === 'right';
+  const facing = direction === 'left' ? -1 : 1;
+  if (stride !== 0) {
+    for (let y = anatomy.hips; y < HERO_FRAME_SIZE; y++) {
+      const position = (y - anatomy.hips) / (anatomy.feet - anatomy.hips);
+      const flex = smoothstep(position);
+      if (flex <= 0) continue;
+      const knee = Math.sin(Math.PI * Math.min(1, position));
+      for (let x = anatomy.minX; x <= anatomy.maxX; x++) {
+        const edge = Math.min((x - anatomy.minX) / 10, (anatomy.maxX - x) / 10, 1);
+        const fade = smoothstep(edge);
+        const leg = Math.tanh((x - anatomy.center) / (side ? 8 : 5));
+        const footSwing = stride * leg;
+        const step = (side ? 8 : 5.5) * footSwing * flex * fade;
+        const kneeBend = -stride * leg * 2.5 * knee * fade;
+        const lift = Math.max(0, footSwing) * 7 * flex * fade;
+        const sx = Math.max(0, Math.min(255, Math.round(x - (step + kneeBend) * (side ? facing : 1))));
+        const sy = Math.max(0, Math.min(255, Math.round(y + lift)));
+        const dst = (y * HERO_FRAME_SIZE + x) * 4;
+        const src = (sy * HERO_FRAME_SIZE + sx) * 4;
+        output.data[dst] = source.data[src];
+        output.data[dst + 1] = source.data[src + 1];
+        output.data[dst + 2] = source.data[src + 2];
+        output.data[dst + 3] = source.data[src + 3];
+      }
+    }
   }
+  context.clearRect(0, 0, HERO_FRAME_SIZE, HERO_FRAME_SIZE);
+  context.putImageData(output, 0, bob);
 }
 
 export function cropDirectionalSpriteFrame(
